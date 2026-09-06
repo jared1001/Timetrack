@@ -5,7 +5,7 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 // Replace this with the inbox managed by your IT/account administrator before
 // deploying. Do not request or send passwords through this email flow.
-const IT_SUPPORT_EMAIL = "replace-with-your-it-email@example.com";
+const IT_SUPPORT_EMAIL = "earlguillermo954@gmail.com";
 
 // Create Supabase client
 const supabaseClient = window.supabase.createClient(

@@ -1,0 +1,19 @@
+# Flutter generated output and local tooling
+supabase_flutter_auth_practice/.dart_tool/
+supabase_flutter_auth_practice/build/
+supabase_flutter_auth_practice/.idea/
+supabase_flutter_auth_practice/.flutter-plugins
+supabase_flutter_auth_practice/.flutter-plugins-dependencies
+supabase_flutter_auth_practice/android/.gradle/
+supabase_flutter_auth_practice/ios/Pods/
+
+# Local environment and deployment files
+.env
+.env.*
+!.env.example
+.vercel/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.iml

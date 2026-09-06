@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">TimeTrack mark</title>
+  <desc id="desc">A rounded TT monogram with a clock accent</desc>
+  <defs>
+    <linearGradient id="mark" x1="12" y1="8" x2="84" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6d67f4"/>
+      <stop offset="1" stop-color="#4338ca"/>
+    </linearGradient>
+  </defs>
+  <rect x="5" y="5" width="86" height="86" rx="27" fill="url(#mark)"/>
+  <path d="M25 29h30M40 29v38M54 45h17M63 45v22" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="8"/>
+  <circle cx="72" cy="28" r="10" fill="#a5b4fc"/>
+  <path d="M72 23v6l4 3" fill="none" stroke="#3730a3" stroke-linecap="round" stroke-width="3"/>
+</svg>

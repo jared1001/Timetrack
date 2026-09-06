@@ -1,0 +1,116 @@
+.login-container {
+    display: grid;
+    min-height: 100vh;
+    place-items: center;
+    padding: 28px;
+    background:
+        linear-gradient(90deg, rgba(243, 245, 249, 0.96) 0%, rgba(243, 245, 249, 0.72) 55%, rgba(243, 245, 249, 0.42) 100%),
+        url('../assets/portal-art.svg') right center / min(780px, 70vw) auto no-repeat,
+        var(--bg);
+}
+
+.login-card {
+    width: min(100%, 440px);
+    padding: 42px;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 28px;
+    background: var(--surface);
+    box-shadow: var(--clay-shadow);
+}
+
+.login-header {
+    margin-bottom: 34px;
+    text-align: center;
+}
+
+.login-header .logo {
+    margin: 0 auto 18px;
+}
+
+.login-header h1 {
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    font-size: 30px;
+    letter-spacing: -0.02em;
+}
+
+.login-header p {
+    margin-top: 7px;
+    color: var(--muted);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.form-group input {
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: var(--surface-light);
+    box-shadow: var(--inset-shadow);
+    color: var(--text);
+    outline: none;
+}
+
+.form-group input::placeholder {
+    color: #9aa4b2;
+}
+
+.form-group input:focus {
+    border-color: rgba(79, 70, 229, 0.5);
+    box-shadow: var(--inset-shadow), 0 0 0 4px rgba(79, 70, 229, 0.1);
+}
+
+.login-button {
+    width: 100%;
+    border: 0;
+    border-radius: 14px;
+    padding: 15px;
+    background: var(--primary);
+    box-shadow: 6px 6px 12px rgba(79, 70, 229, 0.25), -4px -4px 10px rgba(255, 255, 255, 0.5);
+    color: white;
+    font-weight: 700;
+    transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+}
+
+.login-button:hover {
+    background: #5b53ea;
+    transform: translateY(-2px);
+}
+
+.login-button:active {
+    box-shadow: var(--inset-shadow);
+    transform: translateY(1px);
+}
+
+.login-button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.message {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 13px;
+}
+
+@media (max-width: 520px) {
+    .login-container {
+        padding: 18px;
+    }
+
+    .login-card {
+        padding: 30px 22px;
+        border-radius: 22px;
+    }
+}

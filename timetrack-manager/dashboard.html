@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>TimeTrack Manager</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body>
+
+    <div class="dashboard-layout">
+
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="logo">TT</div>
+                <div>
+                    <h2>TimeTrack</h2>
+                    <p>Manager Portal</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav" aria-label="Manager portal sections">
+                <button type="button" class="nav-link active" data-section="dashboardSection">Dashboard</button>
+                <button type="button" class="nav-link" data-section="employeesSection">Employees</button>
+                <button type="button" class="nav-link" data-section="attendanceSection">Attendance</button>
+                <button type="button" class="nav-link" data-section="leaveSection">Leave Requests</button>
+                <button type="button" class="nav-link" data-section="reportsSection">Reports</button>
+            </nav>
+
+            <div class="sidebar-profile">
+                <div class="sidebar-avatar">M</div>
+                <div>
+                    <strong id="managerSidebarName">Manager</strong>
+                    <span id="managerSidebarRole">Manager account</span>
+                </div>
+            </div>
+
+            <button id="logoutButton" class="logout-button" type="button">Logout</button>
+        </aside>
+
+        <main class="main-content">
+            <section id="dashboardSection" class="portal-section active-section">
+                <div class="page-header">
+                    <h1>TimeTrack Manager</h1>
+                    <p>Welcome to the Manager Dashboard</p>
+                </div>
+
+                <div class="dashboard-card">
+                    <div>
+                        <span class="eyebrow">MANAGER OVERVIEW</span>
+                        <h2 class="dashboard-welcome">Good to see you, <span id="dashboardManagerFirstName">Manager</span>.</h2>
+                        <p>You successfully logged in. Here is the latest view of your workforce.</p>
+                    </div>
+                    <div class="manager-info">
+                        <p><strong>Manager:</strong> <span id="managerName">Loading...</span></p>
+                        <p><strong>Email:</strong> <span id="managerEmail">Loading...</span></p>
+                        <button id="contactItButton" class="contact-it-button" type="button">
+                            Contact IT about account access
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-stats">
+                    <div class="summary-card">
+                        <span class="stat-icon">♙</span>
+                        <p>TOTAL EMPLOYEES</p>
+                        <strong id="totalEmployees">0</strong>
+                        <small>Active employees</small>
+                    </div>
+                    <div class="summary-card stat-success">
+                        <span class="stat-icon">◷</span>
+                        <p>PRESENT TODAY</p>
+                        <strong id="presentToday">—</strong>
+                        <small>Attendance records today</small>
+                    </div>
+                    <div class="summary-card stat-warning">
+                        <span class="stat-icon">◇</span>
+                        <p>PENDING LEAVE</p>
+                        <strong id="pendingLeaveCount">—</strong>
+                        <small>Requests awaiting review</small>
+                    </div>
+                </div>
+            </section>
+
+            <section id="employeesSection" class="portal-section" hidden>
+                <div class="page-header">
+                    <h1>Employees</h1>
+                    <p>Manage and view registered TimeTrack employees.</p>
+                </div>
+
+                <div class="employee-card">
+                    <div class="employee-card-header">
+                        <div>
+                            <h2>Employee List</h2>
+                            <p>Registered employees in TimeTrack</p>
+                        </div>
+                        <div class="employee-count" aria-live="polite">
+                            <span id="employeeCount">0</span>
+                            <small>Employees</small>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Full Name</th>
+                                    <th>Employee Number</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employeeTableBody">
+                                <tr>
+                                    <td colspan="4">Loading employees...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="attendanceSection" class="portal-section" hidden>
+                <div class="page-header">
+                    <h1>Attendance</h1>
+                    <p>View attendance records for registered TimeTrack employees.</p>
+                </div>
+
+                <div class="attendance-card">
+                    <div class="attendance-card-header">
+                        <div>
+                            <h2>Attendance Records</h2>
+                            <p>Employee time logs from the centralized attendance database.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Employee Name</th>
+                                    <th>Employee Number</th>
+                                    <th>Date</th>
+                                    <th>Time In</th>
+                                    <th>Break In</th>
+                                    <th>Break Out</th>
+                                    <th>Time Out</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceTableBody">
+                                <tr>
+                                    <td colspan="7">Open Attendance to load records...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="leaveSection" class="portal-section" hidden>
+                <div class="page-header">
+                    <h1>Leave Requests</h1>
+                    <p>Review leave requests submitted by TimeTrack employees.</p>
+                </div>
+
+                <div class="attendance-card">
+                    <div class="attendance-card-header">
+                        <div>
+                            <h2>Submitted Requests</h2>
+                            <p>Requests are displayed from the centralized leave request database.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Employee Name</th>
+                                    <th>Employee Number</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Details</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaveRequestsTableBody">
+                                <tr>
+                                    <td colspan="7">Open Leave Requests to load records...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <div id="leaveDetailsModal" class="leave-modal" hidden>
+                <div class="leave-modal-backdrop" data-close-leave-modal></div>
+                <div class="leave-modal-content" role="dialog" aria-modal="true" aria-labelledby="leaveModalTitle">
+                    <button type="button" class="leave-modal-close" data-close-leave-modal aria-label="Close details">&times;</button>
+                    <h2 id="leaveModalTitle">Leave request details</h2>
+                    <p><strong>Leave type:</strong> <span id="leaveModalType">—</span></p>
+                    <p><strong>Reason:</strong> <span id="leaveModalReason">—</span></p>
+                </div>
+            </div>
+
+            <section id="reportsSection" class="portal-section" hidden>
+                <div class="page-header">
+                    <h1>Reports</h1>
+                    <p>Quick summaries from your employee, attendance, and leave data.</p>
+                </div>
+
+                <div id="reportsContent">
+                    <div class="report-grid">
+                        <div class="report-metric">
+                            <span>Employees</span>
+                            <strong id="reportEmployeeCount">—</strong>
+                        </div>
+                        <div class="report-metric">
+                            <span>Attendance records</span>
+                            <strong id="reportAttendanceCount">—</strong>
+                        </div>
+                        <div class="report-metric">
+                            <span>Completed shifts</span>
+                            <strong id="reportCompletedCount">—</strong>
+                        </div>
+                        <div class="report-metric">
+                            <span>Pending leave</span>
+                            <strong id="reportPendingLeaveCount">—</strong>
+                        </div>
+                        <div class="report-metric">
+                            <span>Today’s work hours</span>
+                            <strong id="reportDailyHours">—</strong>
+                        </div>
+                        <div class="report-metric">
+                            <span>This week</span>
+                            <strong id="reportWeeklyHours">—</strong>
+                        </div>
+                        <div class="report-metric">
+                            <span>This month</span>
+                            <strong id="reportMonthlyHours">—</strong>
+                        </div>
+                        <div class="report-metric">
+                            <span>Estimated monthly pay</span>
+                            <strong id="reportMonthlyPay">—</strong>
+                        </div>
+                    </div>
+
+                    <div class="attendance-card report-table-card">
+                        <div class="attendance-card-header">
+                            <div>
+                                <h2>Attendance Summary</h2>
+                                <p>Attendance records grouped by employee.</p>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Employee Name</th>
+                                        <th>Employee Number</th>
+                                        <th>Recorded Days</th>
+                                        <th>Completed Shifts</th>
+                                        <th>Work Hours</th>
+                                        <th>Estimated Pay</th>
+                                        <th>Overbreak</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reportTableBody">
+                                    <tr>
+                                        <td colspan="7">Open Reports to load summaries...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+
+</body>
+</html>

@@ -6,6 +6,7 @@
 
     <title>TimeTrack Manager</title>
 
+    <link rel="icon" type="image/svg+xml" href="assets/timetrack-mark.svg">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard.css">
 </head>
@@ -25,6 +26,7 @@
 
             <nav class="sidebar-nav" aria-label="Manager portal sections">
                 <button type="button" class="nav-link active" data-section="dashboardSection">Dashboard</button>
+                <button type="button" class="nav-link" data-section="qrSection">Shift QR</button>
                 <button type="button" class="nav-link" data-section="employeesSection">Employees</button>
                 <button type="button" class="nav-link" data-section="attendanceSection">Attendance</button>
                 <button type="button" class="nav-link" data-section="leaveSection">Leave Requests</button>
@@ -86,6 +88,88 @@
                 </div>
             </section>
 
+            <section id="qrSection" class="portal-section" hidden>
+                <div class="page-header">
+                    <h1>Shift QR</h1>
+                    <p>Generate secure shift and overtime codes for employees to scan in TimeTrack.</p>
+                </div>
+
+                <div class="qr-generator-layout">
+                    <div class="attendance-card qr-control-card">
+                        <div class="attendance-card-header">
+                            <div>
+                                <h2>Generate attendance code</h2>
+                                <p>Codes expire after 10 minutes. Replacing a code disables the previous code of the same type.</p>
+                            </div>
+                        </div>
+
+                        <label class="qr-field-label" for="qrAction">Code type</label>
+                        <select id="qrAction" class="qr-select">
+                            <option value="time_in">Shift Time In</option>
+                            <option value="overtime_in">Overtime In</option>
+                            <option value="overtime_out">Overtime Out</option>
+                        </select>
+
+                        <fieldset id="shiftTypeFieldset" class="pay-mode-fieldset">
+                            <legend>Shift</legend>
+                            <div class="pay-mode-options">
+                                <label class="pay-mode-option">
+                                    <input type="radio" name="qrShiftType" value="day" checked>
+                                    <span>Day shift</span>
+                                </label>
+                                <label class="pay-mode-option">
+                                    <input type="radio" name="qrShiftType" value="night">
+                                    <span>Night shift</span>
+                                </label>
+                            </div>
+                        </fieldset>
+
+                        <fieldset id="shiftPayTypeFieldset" class="pay-mode-fieldset">
+                            <legend>Shift pay mode</legend>
+                            <div class="pay-mode-options">
+                                <label class="pay-mode-option">
+                                    <input type="radio" name="qrPayType" value="normal" checked>
+                                    <span>Regular pay</span>
+                                </label>
+                                <label class="pay-mode-option">
+                                    <input type="radio" name="qrPayType" value="double">
+                                    <span>Double pay</span>
+                                </label>
+                            </div>
+                        </fieldset>
+
+                        <fieldset id="overtimePayTypeFieldset" class="pay-mode-fieldset" hidden>
+                            <legend>Overtime pay mode</legend>
+                            <div class="pay-mode-options">
+                                <label class="pay-mode-option">
+                                    <input type="radio" name="qrOvertimePayType" value="normal" checked>
+                                    <span>Regular overtime</span>
+                                </label>
+                                <label class="pay-mode-option">
+                                    <input type="radio" name="qrOvertimePayType" value="double">
+                                    <span>Double-rate overtime</span>
+                                </label>
+                            </div>
+                        </fieldset>
+
+                        <button id="generateAttendanceQrButton" class="primary-button" type="button">
+                            Generate QR
+                        </button>
+                        <p id="attendanceQrStatus" class="qr-status" role="status" aria-live="polite"></p>
+                    </div>
+
+                    <div id="attendanceQrPanel" class="attendance-card qr-display-card" hidden>
+                        <div>
+                            <span id="attendanceQrPayMode" class="qr-pay-mode">Regular pay</span>
+                            <span id="attendanceQrShiftType" class="qr-pay-mode qr-shift-mode">Day shift</span>
+                            <p id="attendanceQrExpiry" class="qr-expiry"></p>
+                        </div>
+                        <div id="attendanceQrCanvas" class="qr-canvas" aria-label="TimeTrack attendance QR code"></div>
+                        <p id="attendanceQrScanNote" class="qr-scan-note"></p>
+                    </div>
+                </div>
+            </section>
+
             <section id="employeesSection" class="portal-section" hidden>
                 <div class="page-header">
                     <h1>Employees</h1>
@@ -130,6 +214,10 @@
                     <p>View attendance records for registered TimeTrack employees.</p>
                 </div>
 
+                <p id="attendanceQrMigrationNotice" class="schema-notice" role="status" hidden>
+                    Shift and overtime QR details appear after the attendance QR database migration is applied.
+                </p>
+
                 <div class="attendance-card">
                     <div class="attendance-card-header">
                         <div>
@@ -145,15 +233,18 @@
                                     <th>Employee Name</th>
                                     <th>Employee Number</th>
                                     <th>Date</th>
+                                    <th>Shift</th>
                                     <th>Time In</th>
                                     <th>Break In</th>
                                     <th>Break Out</th>
                                     <th>Time Out</th>
+                                    <th>Overtime In</th>
+                                    <th>Overtime Out</th>
                                 </tr>
                             </thead>
                             <tbody id="attendanceTableBody">
                                 <tr>
-                                    <td colspan="7">Open Attendance to load records...</td>
+                                    <td colspan="10">Open Attendance to load records...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -214,6 +305,10 @@
                     <p>Quick summaries from your employee, attendance, and leave data.</p>
                 </div>
 
+                <p id="reportQrMigrationNotice" class="schema-notice" role="status" hidden>
+                    Overtime details will appear after the attendance QR database migration is applied. Other report data remains available.
+                </p>
+
                 <div id="reportsContent">
                     <div class="report-group">
                         <h2 class="report-group-title">Workforce overview</h2>
@@ -253,8 +348,26 @@
                                 <strong id="reportMonthlyHours">—</strong>
                             </div>
                             <div class="report-metric">
-                                <span>Estimated monthly pay</span>
+                                <span>Base-pay estimate</span>
                                 <strong id="reportMonthlyPay">—</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="report-group">
+                        <h2 class="report-group-title">Separate overtime</h2>
+                        <div class="report-grid report-grid-overtime">
+                            <div class="report-metric">
+                                <span>Total overtime</span>
+                                <strong id="reportOvertimeHours">—</strong>
+                            </div>
+                            <div class="report-metric">
+                                <span>Regular-rate overtime</span>
+                                <strong id="reportRegularOvertimeHours">—</strong>
+                            </div>
+                            <div class="report-metric">
+                                <span>Double-rate overtime</span>
+                                <strong id="reportDoubleOvertimeHours">—</strong>
                             </div>
                         </div>
                     </div>
@@ -262,8 +375,8 @@
                     <div class="attendance-card report-table-card">
                         <div class="attendance-card-header">
                             <div>
-                                <h2>Attendance Summary</h2>
-                                <p>Attendance records grouped by employee.</p>
+                                <h2>Attendance &amp; overtime summary</h2>
+                                <p>Shift hours and separate overtime grouped by employee.</p>
                             </div>
                         </div>
                         <div class="table-container">
@@ -275,13 +388,15 @@
                                         <th>Recorded Days</th>
                                         <th>Completed Shifts</th>
                                         <th>Work Hours</th>
-                                        <th>Estimated Pay</th>
+                                        <th>Regular-rate OT</th>
+                                        <th>Double-rate OT</th>
+                                        <th>Base-pay Estimate</th>
                                         <th>Overbreak</th>
                                     </tr>
                                 </thead>
                                 <tbody id="reportTableBody">
                                     <tr>
-                                        <td colspan="7">Open Reports to load summaries...</td>
+                                        <td colspan="9">Open Reports to load summaries...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -293,6 +408,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/dashboard.js"></script>

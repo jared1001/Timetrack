@@ -1,7 +1,7 @@
 # TimeTrack database migrations
 
 These migrations are additive changes for the existing Supabase project. They
-are not a replacement for the original setup scripts at the workspace root.
+do not create a duplicate profile table.
 
 Before running a migration:
 
@@ -12,3 +12,11 @@ Before running a migration:
 
 Never create a second `public.profiles` table. The existing table is shared by
 the Flutter employee app and TimeTrack Manager Portal.
+
+Apply migrations in filename order. Migration
+`202610070008_shift_qr_attendance.sql` depends on the server-controlled
+attendance RPCs and manager/admin role helper from migrations `003` and `005`,
+and on the effective-dated pay table from migration `007`. It must be applied
+before deploying the portal's QR controls or the app's QR scanner. It enables
+day/night shift codes and independently rates regular-pay and double-rate
+overtime scans.

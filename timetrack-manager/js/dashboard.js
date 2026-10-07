@@ -3,6 +3,7 @@
 // ==========================================
 
 let loadedLeaveRequests = [];
+let qrAttendanceSchemaAvailable = true;
 
 const EMPLOYEE_NAME_COLLATOR = new Intl.Collator(undefined, {
     sensitivity: "base",
@@ -195,6 +196,10 @@ function showSection(sectionId) {
         loadAttendance();
     }
 
+    if (sectionId === "qrSection") {
+        document.getElementById("qrAction")?.focus();
+    }
+
     if (sectionId === "leaveSection") {
         loadLeaveRequests();
     }
@@ -203,6 +208,109 @@ function showSection(sectionId) {
         loadReports();
     }
 
+}
+
+
+function setupAttendanceQrGenerator() {
+    const button = document.getElementById("generateAttendanceQrButton");
+    const action = document.getElementById("qrAction");
+
+    if (button) button.addEventListener("click", generateAttendanceQr);
+    if (action) action.addEventListener("change", updateQrGeneratorFields);
+    updateQrGeneratorFields();
+}
+
+
+function updateQrGeneratorFields() {
+    const isTimeIn = document.getElementById("qrAction")?.value === "time_in";
+    const shiftPayType = document.getElementById("shiftPayTypeFieldset");
+    const overtimePayType = document.getElementById("overtimePayTypeFieldset");
+
+    if (shiftPayType) shiftPayType.hidden = !isTimeIn;
+    if (overtimePayType) overtimePayType.hidden = isTimeIn;
+}
+
+
+async function generateAttendanceQr() {
+    const button = document.getElementById("generateAttendanceQrButton");
+    const status = document.getElementById("attendanceQrStatus");
+    const action = document.getElementById("qrAction")?.value;
+    const shiftType = document.querySelector("input[name='qrShiftType']:checked")?.value;
+    const payType = document.querySelector("input[name='qrPayType']:checked")?.value;
+    const overtimePayType = document.querySelector("input[name='qrOvertimePayType']:checked")?.value;
+
+    if (
+        !button ||
+        !status ||
+        !["time_in", "overtime_in", "overtime_out"].includes(action) ||
+        !["day", "night"].includes(shiftType) ||
+        !["normal", "double"].includes(payType) ||
+        !["normal", "double"].includes(overtimePayType)
+    ) return;
+
+    button.disabled = true;
+    status.textContent = "Generating a secure code...";
+    document.getElementById("attendanceQrPanel").hidden = true;
+    document.getElementById("attendanceQrCanvas").replaceChildren();
+
+    try {
+        const { data, error } = await supabaseClient.rpc("create_attendance_qr", {
+            p_qr_action: action,
+            p_shift_type: shiftType,
+            p_pay_type: payType,
+            p_overtime_pay_type: overtimePayType
+        });
+
+        if (error) throw error;
+
+        const session = Array.isArray(data) ? data[0] : data;
+        if (!session?.token) throw new Error("The server did not return a QR token.");
+        if (typeof window.QRCode !== "function") {
+            throw new Error("The QR generator did not load. Check the portal internet connection and reload.");
+        }
+
+        const qrContainer = document.getElementById("attendanceQrCanvas");
+        qrContainer.replaceChildren();
+        new window.QRCode(qrContainer, {
+            width: 260,
+            height: 260,
+            text: JSON.stringify({
+                type: "timetrack_attendance",
+                token: session.token
+            }),
+            colorDark: "#14202b",
+            colorLight: "#ffffff",
+            correctLevel: window.QRCode.CorrectLevel.H
+        });
+
+        const actionLabels = {
+            time_in: "Shift Time In",
+            overtime_in: "Overtime In",
+            overtime_out: "Overtime Out"
+        };
+        document.getElementById("attendanceQrPayMode").textContent =
+            action === "time_in"
+                ? (payType === "double" ? "Double-pay shift" : "Regular-pay shift")
+                : (overtimePayType === "double" ? "Double-rate overtime" : "Regular overtime");
+        document.getElementById("attendanceQrShiftType").textContent =
+            shiftType === "night" ? "Night shift" : "Day shift";
+        document.getElementById("attendanceQrScanNote").textContent =
+            `Employees scan this ${actionLabels[action]} code in the TimeTrack app.`;
+        document.getElementById("attendanceQrExpiry").textContent =
+            `Valid until ${new Date(session.expires_at).toLocaleString()}`;
+        document.getElementById("attendanceQrPanel").hidden = false;
+        status.textContent = `${actionLabels[action]} QR is active. Earlier codes of this type are disabled.`;
+    } catch (error) {
+        console.error("Attendance QR generation error:", error);
+        const errorMessage = error?.message || "";
+        const isMissingQrRpc = error?.code === "PGRST202" ||
+            /could not find the function.*create_attendance_qr/i.test(errorMessage);
+        status.textContent = isMissingQrRpc
+            ? "The QR database update is missing. Apply supabase/migrations/202610070008_shift_qr_attendance.sql to this Supabase project, then reload the portal."
+            : errorMessage || "Unable to generate a QR code.";
+    } finally {
+        button.disabled = false;
+    }
 }
 
 
@@ -220,12 +328,12 @@ async function loadReports() {
 
     tableBody.innerHTML = `
         <tr>
-            <td colspan="7">Loading reports...</td>
+            <td colspan="9">Loading reports...</td>
         </tr>
     `;
 
     try {
-        const [profilesResult, attendanceResult, leaveResult] = await Promise.all([
+        const [profilesResult, initialAttendanceResult, leaveResult] = await Promise.all([
             supabaseClient
                 .from("profiles")
                 .select("id, full_name, employee_number")
@@ -233,15 +341,27 @@ async function loadReports() {
                 .order("full_name", { ascending: true }),
             supabaseClient
                 .from("attendance")
-                .select("user_id, date, time_in, break_in, break_out, time_out"),
+                .select("user_id, date, time_in, break_in, break_out, time_out, overtime_in, overtime_out, pay_type, overtime_pay_type"),
             supabaseClient
                 .from("leave_requests")
                 .select("status")
         ]);
 
         if (profilesResult.error) throw profilesResult.error;
-        if (attendanceResult.error) throw attendanceResult.error;
         if (leaveResult.error) throw leaveResult.error;
+
+        let attendanceResult = initialAttendanceResult;
+        if (attendanceResult.error && isMissingQrAttendanceSchema(attendanceResult.error)) {
+            attendanceResult = await supabaseClient
+                .from("attendance")
+                .select("user_id, date, time_in, break_in, break_out, time_out");
+            setQrAttendanceSchemaStatus(false);
+        } else if (attendanceResult.error) {
+            throw attendanceResult.error;
+        } else {
+            setQrAttendanceSchemaStatus(true);
+        }
+        if (attendanceResult.error) throw attendanceResult.error;
 
         const profiles = sortEmployeesAlphabetically(profilesResult.data || []);
         const attendance = attendanceResult.data || [];
@@ -252,7 +372,10 @@ async function loadReports() {
             dailyMinutes: 0,
             weeklyMinutes: 0,
             monthlyMinutes: 0,
-            monthlyOverbreakMinutes: 0
+            monthlyOverbreakMinutes: 0,
+            monthlyOvertimeMinutes: 0,
+            monthlyRegularOvertimeMinutes: 0,
+            monthlyDoubleOvertimeMinutes: 0
         };
 
         attendance.forEach(function (record) {
@@ -260,15 +383,22 @@ async function loadReports() {
                 records: 0,
                 completed: 0,
                 workMinutes: 0,
+                regularOvertimeMinutes: 0,
+                doubleOvertimeMinutes: 0,
                 overbreakMinutes: 0
             };
 
             summary.records += 1;
             const workMinutes = calculateWorkMinutes(record);
+            const overtimeMinutes = calculateOvertimeMinutes(record);
             const overbreakMinutes = calculateOverbreakMinutes(record);
             const recordDate = parseAttendanceDate(record.date);
 
             summary.workMinutes += workMinutes;
+            summary.regularOvertimeMinutes +=
+                record.overtime_pay_type === "double" ? 0 : overtimeMinutes;
+            summary.doubleOvertimeMinutes +=
+                record.overtime_pay_type === "double" ? overtimeMinutes : 0;
             summary.overbreakMinutes += overbreakMinutes;
 
             if (record.time_out != null) summary.completed += 1;
@@ -278,6 +408,11 @@ async function loadReports() {
                 if (recordDate.getFullYear() === now.getFullYear() && recordDate.getMonth() === now.getMonth()) {
                     periodTotals.monthlyMinutes += workMinutes;
                     periodTotals.monthlyOverbreakMinutes += overbreakMinutes;
+                    periodTotals.monthlyOvertimeMinutes += overtimeMinutes;
+                    periodTotals.monthlyRegularOvertimeMinutes +=
+                        record.overtime_pay_type === "double" ? 0 : overtimeMinutes;
+                    periodTotals.monthlyDoubleOvertimeMinutes +=
+                        record.overtime_pay_type === "double" ? overtimeMinutes : 0;
                 }
             }
 
@@ -302,6 +437,18 @@ async function loadReports() {
         updateReportMetric("reportWeeklyHours", formatReportHours(periodTotals.weeklyMinutes));
         updateReportMetric("reportMonthlyHours", formatReportHours(periodTotals.monthlyMinutes));
         updateReportMetric(
+            "reportOvertimeHours",
+            qrAttendanceSchemaAvailable ? formatReportHours(periodTotals.monthlyOvertimeMinutes) : "Apply database update"
+        );
+        updateReportMetric(
+            "reportRegularOvertimeHours",
+            qrAttendanceSchemaAvailable ? formatReportHours(periodTotals.monthlyRegularOvertimeMinutes) : "Not available"
+        );
+        updateReportMetric(
+            "reportDoubleOvertimeHours",
+            qrAttendanceSchemaAvailable ? formatReportHours(periodTotals.monthlyDoubleOvertimeMinutes) : "Not available"
+        );
+        updateReportMetric(
             "reportMonthlyPay",
             formatCurrency((periodTotals.monthlyMinutes / 60) * HOURLY_MINIMUM_WAGE)
         );
@@ -312,7 +459,7 @@ async function loadReports() {
         console.error("Reports loading error:", error);
         tableBody.innerHTML = `
             <tr>
-                <td colspan="7">Unable to load reports right now.</td>
+                <td colspan="9">Unable to load reports right now.</td>
             </tr>
         `;
     }
@@ -331,12 +478,30 @@ function updateReportMetric(elementId, value) {
 }
 
 
+function isMissingQrAttendanceSchema(error) {
+    const message = `${error?.message || ""} ${error?.details || ""}`;
+    return error?.code === "PGRST204" ||
+        error?.code === "42703" ||
+        /column.{0,80}(shift_type|pay_type|overtime_in|overtime_out|overtime_pay_type)|(shift_type|pay_type|overtime_in|overtime_out|overtime_pay_type).{0,80}column/i.test(message);
+}
+
+
+function setQrAttendanceSchemaStatus(isAvailable) {
+    qrAttendanceSchemaAvailable = isAvailable;
+    const reportNotice = document.getElementById("reportQrMigrationNotice");
+    const attendanceNotice = document.getElementById("attendanceQrMigrationNotice");
+
+    if (reportNotice) reportNotice.hidden = isAvailable;
+    if (attendanceNotice) attendanceNotice.hidden = isAvailable;
+}
+
+
 function renderReportRows(profiles, attendanceByUser, tableBody) {
 
     if (profiles.length === 0) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="7">No employees registered yet.</td>
+                <td colspan="9">No employees registered yet.</td>
             </tr>
         `;
         return;
@@ -345,7 +510,11 @@ function renderReportRows(profiles, attendanceByUser, tableBody) {
     tableBody.innerHTML = profiles.map(function (profile) {
         const summary = attendanceByUser.get(profile.id) || {
             records: 0,
-            completed: 0
+            completed: 0,
+            workMinutes: 0,
+            regularOvertimeMinutes: 0,
+            doubleOvertimeMinutes: 0,
+            overbreakMinutes: 0
         };
 
         return `
@@ -355,6 +524,8 @@ function renderReportRows(profiles, attendanceByUser, tableBody) {
                 <td>${summary.records}</td>
                 <td>${summary.completed}</td>
                 <td>${formatReportHours(summary.workMinutes)}</td>
+                <td>${qrAttendanceSchemaAvailable ? formatReportHours(summary.regularOvertimeMinutes) : "—"}</td>
+                <td>${qrAttendanceSchemaAvailable ? formatReportHours(summary.doubleOvertimeMinutes) : "—"}</td>
                 <td>${formatCurrency((summary.workMinutes / 60) * HOURLY_MINIMUM_WAGE)}</td>
                 <td>${formatReportOverbreak(summary.overbreakMinutes)}</td>
             </tr>
@@ -398,6 +569,15 @@ function calculateWorkMinutes(record) {
     const secondWorkPeriod = timeOut.getTime() - breakOut.getTime();
     return Math.max(0, Math.round((firstWorkPeriod + secondWorkPeriod) / 60000));
 
+}
+
+
+function calculateOvertimeMinutes(record) {
+    const overtimeIn = parseAttendanceTimestamp(record.overtime_in);
+    const overtimeOut = parseAttendanceTimestamp(record.overtime_out);
+
+    if (!overtimeIn || !overtimeOut) return 0;
+    return Math.max(0, Math.round((overtimeOut.getTime() - overtimeIn.getTime()) / 60000));
 }
 
 
@@ -744,16 +924,13 @@ async function loadAttendance() {
 
     tableBody.innerHTML = `
         <tr>
-            <td colspan="7">Loading attendance...</td>
+            <td colspan="10">Loading attendance...</td>
         </tr>
     `;
 
     try {
 
-        const {
-            data: attendance,
-            error: attendanceError
-        } = await supabaseClient
+        let { data: attendance, error: attendanceError } = await supabaseClient
             .from("attendance")
             .select(`
                 id,
@@ -762,13 +939,28 @@ async function loadAttendance() {
                 time_in,
                 break_in,
                 break_out,
-                time_out
+                time_out,
+                shift_type,
+                pay_type,
+                overtime_in,
+                overtime_out,
+                overtime_pay_type
             `)
             .order("date", { ascending: false });
 
 
-        if (attendanceError) {
+        if (attendanceError && isMissingQrAttendanceSchema(attendanceError)) {
+            const legacyAttendanceResult = await supabaseClient
+                .from("attendance")
+                .select("id, user_id, date, time_in, break_in, break_out, time_out")
+                .order("date", { ascending: false });
+            if (legacyAttendanceResult.error) throw legacyAttendanceResult.error;
+            attendance = legacyAttendanceResult.data;
+            setQrAttendanceSchemaStatus(false);
+        } else if (attendanceError) {
             throw attendanceError;
+        } else {
+            setQrAttendanceSchemaStatus(true);
         }
 
 
@@ -817,7 +1009,7 @@ async function loadAttendance() {
         console.error("Attendance loading error:", error);
         tableBody.innerHTML = `
             <tr>
-                <td colspan="7">Unable to load attendance records right now.</td>
+                <td colspan="10">Unable to load attendance records right now.</td>
             </tr>
         `;
 
@@ -831,7 +1023,7 @@ function renderAttendance(records, tableBody) {
     if (records.length === 0) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="7">No attendance records found.</td>
+                <td colspan="10">No attendance records found.</td>
             </tr>
         `;
 
@@ -846,10 +1038,21 @@ function renderAttendance(records, tableBody) {
                 <td>${escapeHtml(profile?.full_name || "—")}</td>
                 <td>${escapeHtml(profile?.employee_number || "—")}</td>
                 <td>${escapeHtml(formatAttendanceDate(record.date))}</td>
+                <td>
+                    ${record.shift_type == null ? `<small class="attendance-pay-details">QR migration pending</small>` : `
+                    <span class="pay-mode-badge ${record.pay_type === "double" ? "double" : "normal"}">${record.pay_type === "double" ? "Double pay" : "Regular pay"}</span>
+                    <small class="attendance-pay-details">${record.shift_type === "night" ? "Night shift" : "Day shift"}</small>
+                    `}
+                </td>
                 <td>${escapeHtml(formatAttendanceTime(record.time_in))}</td>
                 <td>${escapeHtml(formatAttendanceTime(record.break_in))}</td>
                 <td>${escapeHtml(formatAttendanceTime(record.break_out))}</td>
                 <td>${escapeHtml(formatAttendanceTime(record.time_out))}</td>
+                <td>
+                    ${escapeHtml(formatAttendanceTime(record.overtime_in))}
+                    ${qrAttendanceSchemaAvailable && record.overtime_in ? `<small class="attendance-pay-details">${record.overtime_pay_type === "double" ? "Double-rate OT" : "Regular-rate OT"}</small>` : ""}
+                </td>
+                <td>${escapeHtml(formatAttendanceTime(record.overtime_out))}</td>
             </tr>
         `;
     }).join("");
@@ -1040,6 +1243,7 @@ if (
 ) {
 
     setupSectionNavigation();
+    setupAttendanceQrGenerator();
     setupLeaveRequestActions();
     loadDashboard();
 

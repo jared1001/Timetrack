@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/attendance_service.dart';
 import '../services/leave_request_service.dart';
 import '../services/profile_service.dart';
+import 'qr_scanner_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -78,6 +79,17 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => _isLoading = false);
       _showMessage(error.toString().replaceFirst('Bad state: ', ''));
     }
+  }
+
+  Future<void> _scanAttendanceQr(String successMessage) async {
+    final token = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => const QrScannerScreen()));
+    if (!mounted || token == null) return;
+
+    await _runAction(() async {
+      await _attendanceService.consumeAttendanceQr(token);
+    }, successMessage);
   }
 
   void _showMessage(String message) {
@@ -424,6 +436,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final summary = _paySummary;
     final regularHours = _numberValue(summary?['regular_hours']);
     final overtimeHours = _numberValue(summary?['overtime_hours']);
+    final regularOvertimeHours = _numberValue(
+      summary?['regular_overtime_hours'],
+    );
+    final doubleOvertimeHours = _numberValue(summary?['double_overtime_hours']);
+    final separateOvertimeAvailable =
+        summary?.containsKey('regular_overtime_hours') ?? false;
     final estimatedPay = _numberValue(summary?['estimated_gross_pay']);
     final completedDays = _numberValue(summary?['completed_days']).toInt();
 
@@ -463,11 +481,50 @@ class _HomeScreenState extends State<HomeScreen> {
           const Divider(height: 24),
           Row(
             children: [
-              Expanded(child: _payMetric('Regular', _formatHours(regularHours))),
-              Expanded(child: _payMetric('Overtime', _formatHours(overtimeHours))),
+              Expanded(
+                child: _payMetric('Regular', _formatHours(regularHours)),
+              ),
+              Expanded(
+                child: _payMetric('Overtime', _formatHours(overtimeHours)),
+              ),
               Expanded(child: _payMetric('Completed days', '$completedDays')),
             ],
           ),
+          const SizedBox(height: 14),
+          if (separateOvertimeAvailable) ...[
+            Text(
+              'SEPARATE OVERTIME',
+              style: TextStyle(
+                color: Colors.blueGrey.shade500,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _payMetric(
+                    'Regular-rate OT',
+                    _formatHours(regularOvertimeHours),
+                  ),
+                ),
+                Expanded(
+                  child: _payMetric(
+                    'Double-rate OT',
+                    _formatHours(doubleOvertimeHours),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            Text(
+              'Separate overtime totals will appear after the attendance QR database update is applied.',
+              style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 12),
+            ),
+          ],
         ],
       ),
     );
@@ -477,11 +534,17 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: Colors.blueGrey.shade500, fontSize: 12)),
+        Text(
+          label,
+          style: TextStyle(color: Colors.blueGrey.shade500, fontSize: 12),
+        ),
         const SizedBox(height: 3),
         Text(
           value,
-          style: const TextStyle(color: Color(0xff12343b), fontWeight: FontWeight.w800),
+          style: const TextStyle(
+            color: Color(0xff12343b),
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );
@@ -640,9 +703,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!hasTimeIn) {
       label = 'Start your shift';
-      description = 'Record your Time In to begin today\'s attendance.';
+      description = 'Scan the manager\'s active Shift Time In QR code.';
       icon = Icons.login;
-      action = _attendanceService.timeIn;
+      action = () => _scanAttendanceQr('Shift Time In recorded.');
     } else if (!hasBreakIn) {
       label = 'Start your break';
       description = 'Your next step is Break In.';
@@ -658,9 +721,20 @@ class _HomeScreenState extends State<HomeScreen> {
       description = 'Record Time Out when your workday is complete.';
       icon = Icons.logout;
       action = _attendanceService.timeOut;
+    } else if (_attendance?['overtime_in'] == null) {
+      label = 'Start overtime';
+      description = 'Scan the manager\'s Overtime In QR code.';
+      icon = Icons.more_time;
+      action = () => _scanAttendanceQr('Overtime In recorded.');
+    } else if (_attendance?['overtime_out'] == null) {
+      label = 'Finish overtime';
+      description = 'Scan the manager\'s Overtime Out QR code.';
+      icon = Icons.timer_off_outlined;
+      action = () => _scanAttendanceQr('Overtime Out recorded.');
     } else {
-      label = 'All done for today';
-      description = 'Your complete attendance record is securely saved to your account.';
+      label = 'Shift and overtime complete';
+      description =
+          'Your attendance and separate overtime are saved to your account.';
       icon = Icons.verified;
       action = null;
     }
@@ -711,7 +785,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   int get _overbreakMinutes {
-    final breakIn = DateTime.tryParse(_attendance?['break_in'] as String? ?? '');
+    final breakIn = DateTime.tryParse(
+      _attendance?['break_in'] as String? ?? '',
+    );
     final breakOut = DateTime.tryParse(
       _attendance?['break_out'] as String? ?? '',
     );
@@ -725,9 +801,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildOverbreakNotice() {
     final hours = _overbreakMinutes ~/ 60;
     final minutes = _overbreakMinutes % 60;
-    final duration = hours > 0
-        ? '${hours}h ${minutes}m'
-        : '${minutes}m';
+    final duration = hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -919,9 +993,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => _selectLeaveDate(isStartDate: true),
                   icon: const Icon(Icons.calendar_today_outlined),
-                  label: Text(_leaveStartDate == null
-                      ? 'Start date'
-                      : _formatDate(_dateOnly(_leaveStartDate!))),
+                  label: Text(
+                    _leaveStartDate == null
+                        ? 'Start date'
+                        : _formatDate(_dateOnly(_leaveStartDate!)),
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -931,9 +1007,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? null
                       : () => _selectLeaveDate(isStartDate: false),
                   icon: const Icon(Icons.calendar_today_outlined),
-                  label: Text(_leaveEndDate == null
-                      ? 'End date'
-                      : _formatDate(_dateOnly(_leaveEndDate!))),
+                  label: Text(
+                    _leaveEndDate == null
+                        ? 'End date'
+                        : _formatDate(_dateOnly(_leaveEndDate!)),
+                  ),
                 ),
               ),
             ],

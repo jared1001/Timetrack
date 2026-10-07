@@ -9,10 +9,20 @@ class AttendanceService {
     return user.id;
   }
 
-  Future<int> timeIn() => _runAction('clock_in');
   Future<int> breakIn() => _runAction('start_break');
   Future<int> breakOut() => _runAction('end_break');
   Future<int> timeOut() => _runAction('clock_out');
+
+  Future<Map<String, dynamic>> consumeAttendanceQr(String token) async {
+    final response = await _supabase.rpc(
+      'consume_attendance_qr',
+      params: {'p_token': token},
+    );
+    if (response is! Map) {
+      throw StateError('Supabase did not return an attendance record.');
+    }
+    return Map<String, dynamic>.from(response);
+  }
 
   Future<int> _runAction(String functionName) async {
     final response = await _supabase.rpc(functionName);

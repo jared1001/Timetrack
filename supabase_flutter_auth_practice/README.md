@@ -6,14 +6,14 @@ Flutter employee application for the TimeTrack system. It uses Supabase Auth and
 
 - Authentication: Supabase Auth email/password.
 - Public signup: sends the employee name and number as Auth metadata. A database trigger creates the employee profile. Manager and admin roles are assigned through an authorized administrative process.
-- Attendance: cloud-only. The application writes directly to `public.attendance`; it does not use SQLite.
+- Attendance: cloud-only. Employee actions use guarded Supabase RPCs; shift Time In and separate overtime checkpoints are recorded by scanning manager-issued QR codes. The app does not use SQLite.
 - Leave: employees submit requests through `public.leave_requests`; managers and admins review them in the TimeTrack Manager Portal.
 
 ## Data contract
 
 `public.profiles` already exists in the connected Supabase project and is authoritative. It is shared with the manager portal and includes `id`, `full_name`, `employee_number`, `email`, and `role`. Do not create a duplicate profiles table.
 
-The setup SQL scripts in the workspace currently cover attendance and leave requests. They are development setup scripts, not yet a complete versioned migration history.
+The additive migrations in `../supabase/migrations` extend the existing attendance and leave schema. Apply migrations in order to a test Supabase project before production. Migration `202610070008_shift_qr_attendance.sql` adds manager-issued, expiring shift and overtime QR sessions and corresponding attendance RPCs; apply it before deploying the portal or using the updated app.
 
 ## Before changing database SQL
 

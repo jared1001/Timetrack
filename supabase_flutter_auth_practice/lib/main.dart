@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Supabase Flutter Auth Practice',
+      title: 'TimeTrack',
       theme: AppTheme.light,
       initialRoute: '/',
       routes: {'/': (context) => const LoginScreen()},

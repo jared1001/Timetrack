@@ -4,6 +4,12 @@
 
 let loadedLeaveRequests = [];
 
+const EMPLOYEE_NAME_COLLATOR = new Intl.Collator(undefined, {
+    sensitivity: "base",
+    numeric: true
+});
+const LEAVE_STATUS_ORDER = { pending: 0, approved: 1, rejected: 2 };
+
 const NCR_DAILY_MINIMUM_WAGE = 755;
 const STANDARD_WORKDAY_HOURS = 8;
 const HOURLY_MINIMUM_WAGE = NCR_DAILY_MINIMUM_WAGE / STANDARD_WORKDAY_HOURS;
@@ -237,7 +243,7 @@ async function loadReports() {
         if (attendanceResult.error) throw attendanceResult.error;
         if (leaveResult.error) throw leaveResult.error;
 
-        const profiles = profilesResult.data || [];
+        const profiles = sortEmployeesAlphabetically(profilesResult.data || []);
         const attendance = attendanceResult.data || [];
         const leaveRequests = leaveResult.data || [];
         const attendanceByUser = new Map();
@@ -509,12 +515,12 @@ async function loadLeaveRequests() {
             return [profile.id, profile];
         }));
 
-        loadedLeaveRequests = leaveRequests.map(function (request) {
+        loadedLeaveRequests = sortLeaveRequests(leaveRequests.map(function (request) {
                 return {
                     ...request,
                     profile: profilesById.get(request.user_id)
                 };
-            });
+            }));
 
         renderLeaveRequests(loadedLeaveRequests, tableBody);
 
@@ -529,6 +535,23 @@ async function loadLeaveRequests() {
 
     }
 
+}
+
+
+function sortLeaveRequests(requests) {
+    return requests.slice().sort(function (first, second) {
+        const firstStatus = String(first.status || "").toLowerCase();
+        const secondStatus = String(second.status || "").toLowerCase();
+        const statusDifference =
+            (LEAVE_STATUS_ORDER[firstStatus] ?? 3) -
+            (LEAVE_STATUS_ORDER[secondStatus] ?? 3);
+
+        if (statusDifference !== 0) return statusDifference;
+
+        const firstCreatedAt = Date.parse(first.created_at) || 0;
+        const secondCreatedAt = Date.parse(second.created_at) || 0;
+        return secondCreatedAt - firstCreatedAt;
+    });
 }
 
 
@@ -915,7 +938,7 @@ async function loadEmployees() {
         }
 
 
-        const employeeList = employees || [];
+        const employeeList = sortEmployeesAlphabetically(employees || []);
 
         updateEmployeeCount(employeeList.length);
         renderEmployees(employeeList, tableBody);
@@ -935,6 +958,16 @@ async function loadEmployees() {
 
     }
 
+}
+
+
+function sortEmployeesAlphabetically(employees) {
+    return employees.slice().sort(function (first, second) {
+        return EMPLOYEE_NAME_COLLATOR.compare(
+            first.full_name || "",
+            second.full_name || ""
+        );
+    });
 }
 
 
@@ -1011,4 +1044,3 @@ if (
     loadDashboard();
 
 }
-

@@ -592,12 +592,23 @@ tbody tr:last-child td {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 18px;
-    margin-bottom: 22px;
+}
+
+.report-group + .report-group {
+    margin-top: 26px;
+}
+
+.report-group-title {
+    margin: 0 0 14px;
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    font-size: 18px;
+    letter-spacing: -0.02em;
 }
 
 .report-metric {
-    min-height: 124px;
-    padding: 21px;
+    min-height: 108px;
+    padding: 18px;
     border: 1px solid rgba(255, 255, 255, 0.82);
     border-radius: var(--radius-md);
     background: var(--surface);
@@ -613,10 +624,12 @@ tbody tr:last-child td {
 
 .report-metric strong {
     display: block;
-    margin-top: 12px;
+    margin-top: 10px;
     color: var(--primary);
     font-family: 'Manrope', sans-serif;
-    font-size: 32px;
+    font-size: clamp(22px, 2vw, 30px);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
 }
 
 .report-table-card {
